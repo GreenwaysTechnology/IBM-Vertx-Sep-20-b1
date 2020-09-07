@@ -1,0 +1,727 @@
+
+Vertx
+
+Functional Programming
+
+
+Reactive Programming using RxJAVA
+
+
+Vertx
+
+
+
+What is functional Programming?
+-Functional programming is one the programming paradigm.
+
+Programming paradigm: Way to build
+->Object oriented
+->Procedural oriented
+->Functional Programming
+->Event Driven Programming
+->Reactive Programming
+
+
+Object Oriented Principles:
+...........................
+
+1.Abstraction
+2.Encapsulation
+3.Hierarchy
+4.Typing
+5.Modularity
+----------------------
+6.Concurrency
+7.Persistency
+
+OO Languages.
+The language which follows the OO the first 5 Principles : Object Oriented Programming language
+small talk,Lisp,C++,Java,C#....
+
+Object orintend vs Object based:
+...............................
+The language which does not follow all the first 5 principles, follows only parital principles those
+languages are called  "Object based language" -  javascript.
+
+
+Functional Programming:
+   Functional programming is one the oldest programming model.
+
+
+History of functional Programming
+.................................
+    In 1930,The scientist called "Alan Turing" : Turing Machine ->State Machine
+    
+    -Abstract computing machine : it is mathematical abstraction for storing ,
+    processing data,read (state).
+
+
+
+State Machine: 
+  It is mathematical abstraction of "How to store state in memory and manipulate
+  that memory".
+ eg 
+  int a =10; ----> a's memory address--->1024 and 10 
+
+ State mutations:
+   a++ -> 11-------What is memory address of 11? 1024.
+
+any drawbacks
+
+1.old values can be tracked , same memory addr is overriden.
+
+Real draw back found after 1970
+
+1.data inconsistency will come.
+
+After, 1970 - Concurrency--multi process -- multi threading
+
+multi state mutation will lead
+1.data corruption.
+   ->Mutx - Lock
+  
+Lock will lead another problems
+  -Blocking
+  -what if thread takes more time--->waiting--performance
+  -Thread dead locking
+
+
+Solution to Turning Machine:
+.............................
+
+Lambda Calculus:
+
+  It is another mathematical approach like state machine to represent state in 
+  memory and mutate it.
+    Lambda calculus (also written as λ-calculus) is a formal system in mathematical
+logic for expressing computation based on function abstraction and 
+application using variable binding and substitution.
+
+
+Lambda Calculus invented by The "Alonzo Church" , Who is PHD student 
+of "Alan Turning"..
+
+
+
+How to apply Lambda Calculus Models?
+
+The Programming languages which implements "lambda Calculus theory" called "Functional programming".
+
+Lambda expressions the programs construction through "functions" -->f()
+
+The languages which implements lambda Calculus
+ ->Scheme
+ ->haskell
+
+
+
+style vs pure:
+..............
+  if a pl implements 100% principles of an functional paradigm, 
+  those languages called "Pure"
+
+  if a pl implements not all principles or partially, 
+  those languages called "style".
+
+
+Functional Programming Principles:
+
+what is function?
+  according lambda calculs , function is representation of computation. which receivies input,process it, return it.- unit of operation
+
+-Functions are "first-class citizen” : function abstraction.
+-Functions can be assigned to variables
+-Composition of functions 
+-Higher order functions
+-Functions can be passed as parameters
+-Functions can be returned as a result
+-Functions without side effects (referential transparency) 
+-Persistent (immutable) data structures
+-Algebraic data types (sum and product types)
+-Pure functional programming has no loops(for..while), they support only recurrsion
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Does java is Object oriented?
+ Yes
+Only Object oriented?
+
+Yes , but before java 8 version.
+
+Java 8 introduced lambda calculs theory implementation inside java.
+
+Java 8 is Object oriented and functional style language.=>hybrid languages.
+
+Lets code:
+..........
+
+java fp implemenations:
+
+1.lambda expressions.
+2.method references
+3.streams- lib -Complete reference implemenation of functional paradgim
+
+
+Use case of interface :
+ -Inheritance
+ -To hide many implementation under one single type.
+ -inner classes
+
+java 8
+
+ -To implement fp
+
+Lambda syntax:
+
+ ()->{
+
+ }
+() - function args
+{} - function body
+-> arrow
+
+package com.ibm.vertx.fp.interfaces;
+
+interface Greeter {
+    void greet();
+}
+
+//implement with class
+class GreeterImpl implements Greeter {
+    @Override
+    public void greet() {
+        System.out.println("Hello Greeter");
+    }
+}
+
+
+public class InterfaceUseCases {
+    public static void main(String[] args) {
+        //Declare Greeter type
+        Greeter greeter = null;
+        //create GreeterImpl instance
+        greeter = new GreeterImpl();
+        greeter.greet();
+        //inner classes way of implementing interfaces. :Annonmous inner classes
+        greeter = new Greeter() {
+            @Override
+            public void greet() {
+                System.out.println("Greeter with annonmous inner class");
+            }
+        };
+        greeter.greet();
+
+        //functional way of implementing interface : just simplify annonmous inner class syntax only
+        greeter = () -> {
+            System.out.println("Greeter with Lambda");
+        };
+        greeter.greet();
+
+
+    }
+}
+
+
+Rules for writting lambda:
+
+-interfaces are used for implimenting lambdas.
+
+interfaces : functional interface
+
+functional interfaces: To enable functional programming in java
+
+
+Rules for funtional Interfaces:
+ Note : all interfaces cant be used for fp.
+
+1.To implement lambda , java provides interface having single / only one abstract method "SAM".
+
+Functional interfaces must have only one abstract method  : SRP principle.
+
+2.interface can have other methods
+   -default methods
+   -static methods
+
+package com.ibm.vertx.fp.lambdarules;
+
+//functional interface: interface must have only one abstract method, if so, the compiler will throw
+//error when you declare lambda
+interface Hello {
+    //static methods
+    public static void saySomething() {
+        System.out.println("Something static");
+    }
+    //abstract method
+    void sayHello();
+    //other methods
+    public default void doSomething() {
+        System.out.println("something default");
+    }
+}
+
+
+public class LambdaRules {
+    public static void main(String[] args) {
+        Hello hello = null;
+        hello = () -> {
+            System.out.println("Hello");
+        };
+        hello.sayHello();
+        hello.doSomething();
+        Hello.saySomething();
+    }
+}
+
+-Interface providers
+  The frameworks/libs/ other developers who provide only interfaces
+-Interface consumers
+ the application who implements/uses interfaces.
+
+ How to design interface with functional interace?
+
+ java.lang.Functional annotation, which is marker annotation, which indicates
+ That interface is functional interface
+
+package com.ibm.vertx.fp.lambdarules;
+
+@FunctionalInterface
+interface Greeter {
+    void greet();
+}
+
+public class FunctionalInterfaceDemo {
+    public static void main(String[] args) {
+        Greeter greeter = null;
+        greeter = () -> {
+            System.out.println("Functional interface demo");
+        };
+        greeter.greet();
+
+    }
+}
+
+package com.ibm.vertx.fp.lambdarules;
+
+@FunctionalInterface
+interface Welcome {
+    void sayWelcome();
+}
+
+/**
+ * Arg type  can be any thing : primitives, int ,char or can be objects or even another function
+ * Return type can be anything.
+ */
+
+//args and parameters
+@FunctionalInterface
+interface Adder {
+    void add(int a, int b);
+}
+
+//return type :
+@FunctionalInterface
+interface Multiplication {
+    int multiply(int a, int b);
+}
+
+//single input and single output
+@FunctionalInterface
+interface Single {
+    int accept(int a);
+}
+
+public class LambdaAdvanced {
+    public static void main(String[] args) {
+        Welcome welcome = null;
+        welcome = () -> {
+            System.out.println("Hello");
+            System.out.println("Hello");
+            System.out.println("Hello");
+            System.out.println("Hello");
+
+        };
+        welcome.sayWelcome();
+        //if function body, has only one line of code : we can remove {}
+        welcome = () -> System.out.println("single line of body");
+        welcome.sayWelcome();
+        ////////////////////////////////////////////////////////////////////////////
+        Adder adder = null;
+        //a, and b are args
+        adder = (int a, int b) -> {
+            int c = a + b;
+            System.out.println("Adder result " + c);
+        };
+        //10 and 20 are parameters
+        adder.add(10, 20);
+        //Type inference: implicit type understanding., Type of a and b is understood by default
+        adder = (a, b) -> {
+            int c = a + b;
+            System.out.println("Adder result " + c);
+        };
+        //10 and 20 are parameters
+        adder.add(10, 20);
+        //////////////////////////////////////////////////////////////////////////////
+        Multiplication multiplication = null;
+        multiplication = (a, b) -> {
+            int c = a * b;
+            return c;
+        };
+        System.out.println(multiplication.multiply(10, 10));
+        //return only result
+        multiplication = (a, b) -> {
+            return a * b;
+        };
+        System.out.println(multiplication.multiply(10, 10));
+        //if function has only return statement, no more body : remove {} and return statement
+        multiplication = (a, b) -> a * b;
+        System.out.println(multiplication.multiply(10, 10));
+        //Single input and single output
+        Single single = null;
+        single = (a) -> a * 2;
+        System.out.println(single.accept(10));
+        //single input, we can remove () as well
+        single = a -> a * 2;
+        System.out.println(single.accept(10));
+
+
+    }
+}
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Function is first class citizen :
+
+- function is every thing.
+
+you can assign function into a variable. that variable can be used to invoke implemenation
+
+- function can be passed as a parameter another function
+  just like other values
+
+-function can be retuned from another function.
+
+
+
+package com.ibm.vertx.fp.principles;
+
+@FunctionalInterface
+interface Handler {
+    void handle();
+}
+
+@FunctionalInterface
+interface HttpHandler {
+    void handle(Object response);
+}
+
+//class
+class SocketHandler {
+    //pass handler interface
+    public void requestHandler(Handler handler) {
+        handler.handle();
+    }
+}
+
+class HttpServer {
+    public void requestHandler(HttpHandler httpHandler) {
+        String response = "This is Response";
+        httpHandler.handle(response);
+    }
+}
+
+//old way :Object oriented way
+class SocketHandlerImpl implements Handler {
+    @Override
+    public void handle() {
+        System.out.println("Socket Handler");
+    }
+}
+
+
+public class FunctionAsParameter {
+    public static void main(String[] args) {
+        SocketHandler socketHandler = null;
+        socketHandler = new SocketHandler();
+        SocketHandlerImpl socketHandlerImpl = new SocketHandlerImpl();
+        socketHandler.requestHandler(socketHandlerImpl);
+
+        //old way : annonmous inner class
+        socketHandler.requestHandler(new Handler() {
+            @Override
+            public void handle() {
+                System.out.println("Socket Handler Annomous way");
+            }
+        });
+        //lambda way : function as a parameter
+        socketHandler.requestHandler(() -> {
+            System.out.println("Socket Handler Lambda Way!!!");
+        });
+        socketHandler.requestHandler(() -> System.out.println("Socket Handler Lambda Way!!!"));
+
+        ////////////////////////////////////////////////////////////////////////////////////////
+        HttpServer httpServer = new HttpServer();
+        httpServer.requestHandler((Object response) -> {
+            System.out.println(response);
+        });
+        httpServer.requestHandler(response -> System.out.println(response));
+
+    }
+}
+
+Lab:
+20 mins:
+
+you must have class called Login.
+Login class will have method called validate.
+validate Method args  ars two functional interface
+interface Resolve, Reject
+
+Resolve - for success
+Reject  - for reject
+
+write login logic , if login success- you have to send response "login success"
+via resolve interface
+else
+login failed via
+reject interface.
+
+user and password can be hardcoded , verify that.
+
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+How to return function from another function ?
+
+
+package com.ibm.vertx.fp.principles;
+
+@FunctionalInterface
+interface Closure {
+    void getValue(int value);
+}
+
+class ReturnFunction {
+    public Closure getFunction() {
+        //syntax 1;
+        //  Closure closure = value -> System.out.println(value);
+        //return closure;
+        //syntax 2;
+        return a -> System.out.println(a);
+    }
+}
+
+public class FunctionAsReturnValue {
+    public static void main(String[] args) {
+        ReturnFunction returnFunction = new ReturnFunction();
+        Closure closure = null;
+        closure = returnFunction.getFunction();
+        closure.getValue(1000);
+    }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Method References:
+
+->It is technique to reduce lot of lambda code itself.
+
+method references:
+  ::
+
+
+1.instance method as reference 
+     - this::methodName
+2.static method as reference
+    - ClassName::methodName
+3.constructor as reference.
+
+
+Built in interfaces marked functional interface.
+
+
+
+package com.ibm.vertx.fp.methodreferences;
+
+
+@FunctionalInterface
+interface Printer {
+    void print(String message);
+}
+
+@FunctionalInterface
+interface UpperCase {
+    String convertToUpper(String message);
+}
+
+class ThreadImpl implements Runnable {
+    @Override
+    public void run() {
+        System.out.println(Thread.currentThread().getName());
+    }
+}
+
+//
+class MicroTask {
+    public static void startstaticMicrotask() {
+        System.out.println(Thread.currentThread().getName());
+    }
+
+    public void startMicrotask() {
+        System.out.println(Thread.currentThread().getName());
+    }
+}
+
+class Task {
+
+    //thread logic
+    private void startMicrotask() {
+        System.out.println(Thread.currentThread().getName());
+    }
+
+    public void start() {
+        Thread thread = null;
+        thread = new Thread(new ThreadImpl());
+        thread.start();
+        //
+        thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                System.out.println(Thread.currentThread().getName());
+            }
+        });
+        thread.start();
+        //lambda
+        Runnable runner = () -> System.out.println(Thread.currentThread().getName());
+        thread = new Thread(runner);
+        thread.start();
+        //inline lambda
+        thread = new Thread(() -> System.out.println(Thread.currentThread().getName()));
+        thread.start();
+        //isloate thread logic into another method.
+        thread = new Thread(() -> this.startMicrotask());
+        thread.start();
+        //using method reference we can isloate the code
+        //instance method - method reference
+        thread = new Thread(this::startMicrotask);
+        thread.start();
+        MicroTask microTask = new MicroTask();
+        thread = new Thread(microTask::startMicrotask);
+        thread.start();
+        thread = new Thread(new MicroTask()::startMicrotask);
+        thread.start();
+        thread = new Thread(MicroTask::startstaticMicrotask);
+        thread.start();
+    }
+}
+
+
+public class MethodReference {
+    public static void main(String[] args) {
+        Task task = new Task();
+        task.start();
+
+        Printer printer = null;
+        printer = message -> System.out.println(message);
+        printer.print("Hello Printer");
+        //method Reference
+        printer = System.out::println;
+        printer.print("Hello Printer");
+
+        UpperCase upperCase = null;
+        upperCase = message -> {
+            return message.toUpperCase();
+        };
+        System.out.println(upperCase.convertToUpper("hello"));
+        upperCase = message -> message.toUpperCase();
+        System.out.println(upperCase.convertToUpper("hello"));
+        //method reference
+        upperCase = String::toUpperCase;
+        System.out.println(upperCase.convertToUpper("hello"));
+
+
+    }
+}
+if you want to implement lambda, you need functional interface.
+
+Lets i want to design common interfaces which accepts and returns
+
+-single input, no output
+-two input , single output
+-only integer input,return the same
+-two any type of input,return boolean ; predicate
+etc...
+do you think that it is good idea to have your own functional interfaces for
+common uses cases
+No!
+if you want to implement lambda, you need functional interface.
+
+Lets i want to design common interfaces which accepts and returns
+
+-single input, no output
+-two input , single output
+-only integer input,return the same
+-two any type of input,return boolean ; predicate
+etc...
+do you think that it is good idea to have your own functional interfaces for
+common uses cases
+No!
+
+Then what i should do? 
+
+Java 8 provides java.util.function package which has lot of built in common use interfaces.
+
+Important functional interfaces:
+...............................
+1.Consumer
+2.Predicate
+3.Supplier
+4.UnaryOperator
+5.BinaryOperator
+6.Function
+
+package com.ibm.vertx.fp.builtinfpinerfaces;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+public class BuiltInFunctionalInterfaces {
+    public static void main(String[] args) {
+        Consumer<String> consumer = null;
+        //consumer - annonmous
+        consumer = new Consumer<String>() {
+            @Override
+            public void accept(String s) {
+                System.out.println(s);
+            }
+        };
+        consumer.accept("Hello How are you?");
+        consumer = s -> System.out.println(s);
+        consumer.accept("Hello how are you?");
+        consumer = System.out::println;
+        consumer.accept("Hello how are you?");
+        List<Integer> list = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        list.forEach(i -> System.out.println(i));
+        list.forEach(System.out::println);
+
+        //Supplier return value
+        Supplier<String> supplier = null;
+        supplier = () -> "Hello";
+        System.out.println(supplier.get());
+
+        //Predicate : boolean results
+        Predicate<Integer> predicate = null;
+        predicate = value -> value == 10;
+        System.out.println(predicate.test(10));
+        //Function
+        Function<Integer, Integer> function = null;
+        function = value -> value * 2;
+        System.out.println(function.apply(10));
+
+    }
+}
+
+
+
