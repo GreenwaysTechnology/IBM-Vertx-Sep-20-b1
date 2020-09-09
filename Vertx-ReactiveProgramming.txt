@@ -1119,12 +1119,238 @@ During backpressure, items may be droped
 
 
 
+Reactive Pull
+..............
+Above two strategies manage backpressure by dropping items, if your application need to process all the items emitted by source observable then you can’t use those strategies.
+
+In this scenario, using reactive pull strategy is the right choice. In reactive pull, subscriber requests required number of items from observable by calling request().
+
+
+Reactive Pull:
+
+ Reactive programs supports push paradigm
+ Reactive programs supports even pull also
+
+
+PUSH + PULL = Reactive PULL
+
+Down Stream can control up stream with help of mediator object that is called
+"Subscription object"
+
+DownStream --------Subscription ---------UpStream
+
+DownStream --------Subscription ---------UpStream
+                        |
+                 request(no-elements)
+
+Reactive Streams:
+.................
+   Reactive Stream is spec published to enable backpressure and create Back Pressure streams.-https://www.reactive-streams.org/
+
+How provide backPressure handling feature at api level or Publisher level?
+
+Soultion : Publisher level, in order to provide publisher , Many companies joined together
+
+who published another spec "Reactive Stream"
+
+
+Reactive Streams is an initiative to provide a standard for asynchronous stream processing with non-blocking back pressure. This encompasses efforts aimed at runtime environments (JVM and JavaScript) as well as network protocols.
+
+
+
+The Team provided common spec:
+
+1.Publisher
+2.Subscriber
+3.Subscription
+4.Processor
+
+After this spec published, Rxjava team relased new version - Rxjava 2 which implements reactive stream specification..
+
+Rxjava 1 - has no implementation of "Reactive Stream Spec"
+
+Rxjava 2 - Reactive Stream Spec implemented.
+
+Rxjava 2 Provided one Simple Observable.
+
+Flowable ====== Observable
+
+
+io.reactivex.rxjava3.core.Flowable:
+ 0..N flows, supporting Reactive-Streams and backpressure
+
+package com.ibm.vertx.reactive;
+
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.Observable;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+
+import java.util.concurrent.TimeUnit;
+
+public class BackPressure {
+    public static void sampleOpertor() {
+        Observable<Integer> observable = Observable
+                .range(1, 5000)
+                .sample(1, TimeUnit.NANOSECONDS) //back pressure operator
+                .map(i -> i); //down stream dont get values from 1 rather
+        observable.subscribe(s -> {
+            System.out.println("value after every 1 nano secs " + s);
+        });
+    }
+
+    public static void buffer() {
+        Observable.range(1, 2000)
+                .buffer(5) //back pressure operator , buffering/storing values and send to down stream
+                .map(i -> i) //down stream dont get values from 1 rather than get buffer of 5
+                .subscribe((i) -> System.out.println("Item Got :" + i), System.out::println);
+    }
+
+    public static void lastN() {
+        Observable.range(1, 100)
+                .takeLast(50) //back pressure drop all items , expect last 50 values
+                .map(i -> i) //down stream dont get values from 1 rather than get buffer of 5
+                .subscribe((i) -> System.out.println("Item Got :" + i), System.out::println);
+    }
+
+    public static void basicFlowable() {
+        Flowable.range(1, 100).subscribe(System.out::println);
+    }
+
+    //reactive pull
+    public static void reactivePull() {
+        Flowable flowable = Flowable.range(1, 100);
+
+        flowable.subscribe(new Subscriber() {
+            Subscription subscription = null;
+
+            @Override
+            public void onSubscribe(Subscription s) {
+                this.subscription = s;
+                //start requesting
+                //s.request(Long.MAX_VALUE);
+                subscription.request(4);
+            }
+
+            @Override
+            public void onNext(Object o) {
+                // subscription.request(4);
+                System.out.println(o);
+
+            }
+
+            @Override
+            public void onError(Throwable t) {
+            }
+
+            @Override
+            public void onComplete() {
+                System.out.println("complete");
+            }
+        });
+    }
+
+    public static void main(String[] args) {
+        //sampleOpertor();
+        //buffer();
+        //lastN();
+        //basicFlowable();
+        reactivePull();
+    }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Threading and Reactive Programming:
+...................................
+
+how do i implement multithreading?
+
+Thread and Runnable.
+
+Executor framework- abstraction  for multithreading.
+
+Reactive extension introduced functional style multithreading.
+
+Schedulers.
+
+Rx java and Schedulers
+
+Schedulers can help  isloate streaming processing into multi threading
+Schedulers:
+...........
+
+A scheduler is low level thread abstraction similar to "ExecutorService" in java.
+
+Scheduler has wide range of features
+- virutal time for testing
+- trampoling for immediate scheduling
+so on...
+
+The Schedulers class has static methods that give access to the following execution contexts:
+
+The current thread (Schedulers.immediate()).
+
+A single, reusable thread (Schedulers.single()).
+ Note that this method reuses the same thread for all callers, until the Scheduler is disposed. If you want a per-call dedicated thread, use Schedulers.newSingle() for each call.
+
+
+An elastic thread pool (Schedulers.elastic()). 
+
+It creates new worker pools as needed, and reuse idle ones.
+ Worker pools that stay idle for too long (default is 60s) are disposed. This is a good choice for I/O blocking work for instance. Schedulers.elastic() is a handy way to give a blocking process its own thread, so that it does not tie up other resources.
+
+a fixed pool of workers that is tuned for parallel work (Schedulers.parallel()). It creates as many workers as you have CPU cores
+
+
+How to run operators in a separate thread of execution?
+
+observeOn(s):
+ where you have attached this operator in the middle of subscriber chain, it takes signals from the upstream and replays them downstream while executing the task from the associated scheduler.
+
+
+ source()---map()---filter-|-map---filter---map |
+                         observeon(sheduler)
 
 
 
 
+subscribeOn
+ applies to the subscription process,
+ no mater where you place the subscribeOn in the chain.
+ It always affects context of the source emission.
+
+ source()---map()---filter-|-map---filter---map |
+                         subscribeOn(sheduler)
 
 
+package com.ibm.vertx.reactive;
+
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+
+public class ReactiveThreading {
+    public static void main(String[] args) {
+        Flowable.just("Hello Scheduler")
+                .map(message -> { //up stream
+                    System.out.println("First Map is running on " + Thread.currentThread().getName());
+                    return message;
+                })
+                .observeOn(Schedulers.computation()) // attach thread , so that down streams will run
+                .map(message -> { //down and up stream
+                    System.out.println("Second Map is running on " + Thread.currentThread().getName());
+                    return message;
+                })
+                .observeOn(Schedulers.io()) // attach thread , so that down streams will run
+                .map(message -> { //down and up stream
+                    System.out.println("Third Map is running on " + Thread.currentThread().getName());
+                    return message;
+                })
+                .subscribeOn(Schedulers.newThread())
+                .blockingLast();
+
+
+    }
+}
 
 
 
