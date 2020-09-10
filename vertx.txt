@@ -1521,6 +1521,1764 @@ public class JSONVerticle extends AbstractVerticle {
     });
   }
 }
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+non blocking apis:
+
+Creating TCP clients and servers
+Creating HTTP clients and servers
+Creating DNS clients
+Creating Datagram sockets
+Setting and cancelling periodic and one-shot timers
+Getting a reference to the event bus API
+Getting a reference to the file system API
+
+
+Timer api
+ 
+
+io api
+ -fs
+ -networking api
+
+
+Timer api:
+package com.ibm.vertx.async.timers;
+
+import io.vertx.core.*;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+
+public class TimerVerticleMain extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(TimerVerticleMain.class);
+  }
+
+  //timeout
+  public void timeout(long delay) {
+    //create timer , fire callback function/handler function
+    vertx.setTimer(delay, timerId -> {
+      System.out.println("Timer ID :" + timerId);
+      System.out.println("Called after " + delay);
+
+    });
+  }
+
+  public Future<JsonObject> getDataIndelay(long delay) {
+    //create timer , fire callback function/handler function
+    Promise<JsonObject> promise = Promise.promise();
+    vertx.setTimer(delay, timerId -> {
+      //encaspulate data , will be sent to caller called after some delay
+      promise.complete(new JsonObject().put("message", "Hello"));
+    });
+    return promise.future();
+  }
+
+  public void getDataCallback(long delay, Handler<AsyncResult<JsonObject>> aHandler) {
+    vertx.setTimer(delay, timerId -> {
+      aHandler.handle(Future.succeededFuture(new JsonObject().put("message", "Welcome")));
+    });
+  }
+
+  //i want to fire every delay ms
+  public void heartBeat(long delay, Handler<AsyncResult<Double>> aHandler) {
+    long timerId = vertx.setPeriodic(delay, id -> {
+      aHandler.handle(Future.succeededFuture(Math.random()));
+    });
+    //cancle the polling after some time-
+    vertx.setTimer(10000, arid -> {
+      System.out.println("stopping producing random numbers");
+      vertx.cancelTimer(timerId);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("start");
+    timeout(1000);
+    timeout(5000);
+    getDataIndelay(2500).onComplete(event -> {
+      if (event.succeeded()) {
+        System.out.println(event.result().encodePrettily());
+      }
+    });
+    getDataCallback(3000, timerHandler -> {
+      if (timerHandler.succeeded()) {
+        System.out.println(timerHandler.result().encodePrettily());
+      }
+    });
+    //get data
+    heartBeat(1000, ar -> {
+      System.out.println(ar.result().doubleValue());
+    });
+
+    System.out.println("end");
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+Vertx Microservices:
+...................
+
+Communication between objects and applications
+..............................................
+
+Communicaiton styles:
+
+1.HTTP communication -
+2.TCP  communication - RPI
+3.Message communication- RabbitMQ,kaffa...
+
+
+Vertx supports all types of communication.
+
+1.Messaging communication.
+
+ Vertx provides built in message model where verticles can communicate in loosly coupled and async  way.
+
+
+In Vertx, How objects(Verticles) communicate each other?
+
+ Via MOM like architecture, event bus
+
+Event Bus:
+
+-Event Bus is nerve of vertx systems.
+
+-Vertx By default is distributed
+
+-Vertx carries distributed architecture by default
+
+-In Vertx Verticles can communicate via Centraized Broker which is built in called event Bus.
+
+-Event Bus uses tcp transport layer by default
+-EventBus can send and recive data in the form of json and buffer
+
+
+How verticle has been designed to adopt this architecture?
+
+Verticle follows a design pattern  "Actor-like Model" ---->Actor Model design pattern
+
+
+https://doc.akka.io/docs/akka/current/typed/guide/actors-intro.html
+
+
+Event Bus:
+
+1.Event Bus can allow verticles sends data from one place to another place
+2.Event Bus forms a distributed peer-to-peer messaging system spannining multiple server nodes   and multiple browers.
+3.Event bus allows sending messages in three ways
+  1.pub/sub : one to many
+  2.point-to-point : one to one
+  3.request-reply(reponse) - one to one with acknowlegement.
+
+4.Event bus identifies clients via "addressing"
+   Messages are sent on the event bus to an "address"
+   Address schemes can be any naming convention, recommendation is dns model "in.news.covid"
+   
+5.Handlers
+   Since vertx is non blocking, messages are processed by handlers.
+   You have to register a handler at an address
+
+6.Type of Data
+   Data type of message could be any primitive-int,char,boolean,String, Buffer,JSON
+
+   Per Vertx Engine only One Event Bus-singleTon
+
+
+PUB-SUB:
+package com.ibm.vertx.microservices.eventbus;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.example.util.Runner;
+
+class Address {
+  public static String PUBSUBADDRESS = "news.in.covid";
+}
+
+//pub-sub one to many
+class NewsSevenVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class BBCVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class NDTVVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+//publisher publish news to all news tv channels
+class PublisherVerticle extends AbstractVerticle {
+
+  public void publish() {
+    //Get EventBus Object reference
+    EventBus eventBus = vertx.eventBus();
+    //publish a message : pub-sub
+    String message = "Last 24 Hrs covid count is 80000";
+    vertx.setTimer(1000, ar -> {
+      eventBus.publish(Address.PUBSUBADDRESS, message);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    publish();
+  }
+}
+
+public class EventBusMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(EventBusMainVerticle.class);
+  }
+
+  public void pubsub() {
+    vertx.deployVerticle(new PublisherVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("PublisherVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new BBCVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("BBCVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new NewsSevenVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("NewsSevenVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new NDTVVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("NDTVVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    pubsub();
+
+  }
+}
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Point to Point
+package com.ibm.vertx.microservices.eventbus;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.example.util.Runner;
+
+class Address {
+  public static String PUBSUBADDRESS = "news.in.covid";
+  public static String POINTOPOINT = "fund.in.covid.request";
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//point to point
+class CenertalFinanceVerticle extends AbstractVerticle {
+
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    //pub-sub
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.POINTOPOINT);
+    //handle /process the message/news
+    messageConsumer.handler(news -> {
+      System.out.println("Request -  : " + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+//point to point publisher
+class FinanceRequestVerticle extends AbstractVerticle {
+
+  public void requestFinance() {
+    //
+    System.out.println("Finance Request started....");
+    vertx.setTimer(5000, ar -> {
+      //point to point : send method
+      String message = "Dear Team, We request that we want 1 Billion Money for Covid";
+      //point to p
+      vertx.eventBus().send(Address.POINTOPOINT, message);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    requestFinance();
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//pub-sub one to many
+class NewsSevenVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class BBCVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class NDTVVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+//publisher publish news to all news tv channels
+class PublisherVerticle extends AbstractVerticle {
+
+  public void publish() {
+    //Get EventBus Object reference
+    EventBus eventBus = vertx.eventBus();
+    //publish a message : pub-sub
+    String message = "Last 24 Hrs covid count is 80000";
+    vertx.setTimer(1000, ar -> {
+      eventBus.publish(Address.PUBSUBADDRESS, message);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    publish();
+  }
+}
+
+public class EventBusMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(EventBusMainVerticle.class);
+  }
+
+  public void pubsub() {
+    vertx.deployVerticle(new PublisherVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("PublisherVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new BBCVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("BBCVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new NewsSevenVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("NewsSevenVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new NDTVVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("NDTVVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+
+  }
+
+  public void pointToPoint() {
+    vertx.deployVerticle(new CenertalFinanceVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("CenertalFinanceVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new FinanceRequestVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("FinanceRequestVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+  }
+
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //pubsub();
+    pointToPoint();
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Request-Reply with Ack:.
+......................
+
+package com.ibm.vertx.microservices.eventbus;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.example.util.Runner;
+
+class Address {
+  public static String PUBSUBADDRESS = "news.in.covid";
+  public static String POINTOPOINT = "fund.in.covid.request";
+  public static String REQUESTREPLY = "report.in.covid";
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+//request-reply
+
+class LabVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    //pub-sub
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.REQUESTREPLY);
+    //handle /process the message/news
+    messageConsumer.handler(news -> {
+      System.out.println("Request -  : " + news.body());
+      //sending reply /ack
+      news.reply("Patient is Crictal, Need More attention");
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class ReportVerticle extends AbstractVerticle {
+
+  public void sendReport() {
+    vertx.setTimer(5000, ar -> {
+      String message = "Report of Mr.x";
+
+      vertx.eventBus().request(Address.REQUESTREPLY, message, asyncResult -> {
+        if (asyncResult.succeeded()) {
+          System.out.println(asyncResult.result().body());
+        } else {
+          System.out.println(asyncResult.cause());
+        }
+      });
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    sendReport();
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//point to point
+class CenertalFinanceVerticle extends AbstractVerticle {
+
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    //pub-sub
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.POINTOPOINT);
+    //handle /process the message/news
+    messageConsumer.handler(news -> {
+      System.out.println("Request -  : " + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+//point to point publisher
+class FinanceRequestVerticle extends AbstractVerticle {
+
+  public void requestFinance() {
+    //
+    System.out.println("Finance Request started....");
+    vertx.setTimer(5000, ar -> {
+      //point to point : send method
+      String message = "Dear Team, We request that we want 1 Billion Money for Covid";
+      //point to p
+      vertx.eventBus().send(Address.POINTOPOINT, message);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    requestFinance();
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//pub-sub one to many
+class NewsSevenVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class BBCVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+class NDTVVerticle extends AbstractVerticle {
+  public void consume() {
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer(Address.PUBSUBADDRESS);
+    messageConsumer.handler(news -> {
+      System.out.println(this.getClass().getName() + news.body());
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    consume();
+  }
+}
+
+//publisher publish news to all news tv channels
+class PublisherVerticle extends AbstractVerticle {
+
+  public void publish() {
+    //Get EventBus Object reference
+    EventBus eventBus = vertx.eventBus();
+    //publish a message : pub-sub
+    String message = "Last 24 Hrs covid count is 80000";
+    vertx.setTimer(1000, ar -> {
+      eventBus.publish(Address.PUBSUBADDRESS, message);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    publish();
+  }
+}
+
+public class EventBusMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(EventBusMainVerticle.class);
+  }
+
+  public void pubsub() {
+    vertx.deployVerticle(new PublisherVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("PublisherVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new BBCVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("BBCVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new NewsSevenVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("NewsSevenVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new NDTVVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("NDTVVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+
+  }
+
+  public void pointToPoint() {
+    vertx.deployVerticle(new CenertalFinanceVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("CenertalFinanceVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new FinanceRequestVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("FinanceRequestVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+  }
+
+  public void requestReply() {
+    vertx.deployVerticle(new LabVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("LabVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+    vertx.deployVerticle(new ReportVerticle(), handler -> {
+      if (handler.succeeded()) {
+        //each verticle is assigned with unique deployment id;
+        System.out.println("ReportVerticle " + handler.result() + " Successfully deployed");
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //pubsub();
+    // pointToPoint();
+    requestReply();
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+non blocking HTTP Servers and Clients:
+......................................
+
+How to build non blocking web application
+
+vertx offers low level api called
+ vertx.createHttpServer()
+
+Objects:
+
+1.HttpServer
+2.HttpServerRequest
+3.HttpServerResponse
+
+All these objects are created already by vertx and only we use references.
+
+
+package com.ibm.vertx.microservices.http.server;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.example.util.Runner;
+
+public class HTTPServerMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(HTTPServerMainVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //create server
+    HttpServer httpServer = vertx.createHttpServer();
+
+    //start handling request-response in non blocking
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      //start sending response
+      // response.write("Hello");
+      //close the stream
+      response.end("Hello");
+    });
+    //start the server
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+
+  }
+}
+
+package com.ibm.vertx.microservices.http.server;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+
+class SomeServiceVerticle extends AbstractVerticle {
+  @Override
+  public void start() throws Exception {
+    super.start();
+    EventBus eventBus = vertx.eventBus();
+    MessageConsumer<String> messageConsumer = eventBus.consumer("ibm.today.message");
+    System.out.println("message");
+    messageConsumer.handler(news -> {
+      System.out.println("Message From HTTP " + news.body());
+    });
+  }
+}
+
+public class HTTPServerMainVerticle extends AbstractVerticle {
+  String data = "";
+
+  public static void main(String[] args) {
+    Runner.runExample(HTTPServerMainVerticle.class);
+  }
+
+  //send simple message
+  public void createBasicHttpServer() {
+    //create server
+    HttpServer httpServer = vertx.createHttpServer();
+
+    //start handling request-response in non blocking
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      //start sending response
+      // response.write("Hello");
+      //close the stream
+      response.end("Hello");
+    });
+    //start the server
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  //sending some json data
+  public void sendJson() {
+    //create server
+    HttpServer httpServer = vertx.createHttpServer();
+    //start handling request-response in non blocking
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      response.putHeader("content-type", "application/json");
+      JsonObject message = new JsonObject()
+        .put("name", "Subramanian")
+        .put("message", "welcome");
+      response.end(message.encodePrettily());
+    });
+    //start the server
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  public void readClientData() {
+    //create server
+    HttpServer httpServer = vertx.createHttpServer();
+
+    //start handling request-response in non blocking
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      //read client data;
+      request.bodyHandler(buffer -> {
+        System.out.println(buffer.toString());
+
+        response.end(buffer.toString());
+      });
+      response.endHandler(event -> {
+        System.out.println("response committed");
+      });
+
+      //  response.end("Hello");
+    });
+    //start the server
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  //send data to event bus ; http-event bus
+  public void sendRequestDataToEventBus() {
+    //create server
+    HttpServer httpServer = vertx.createHttpServer();
+
+    //start handling request-response in non blocking
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      //read client data;
+      request.bodyHandler(buffer -> {
+        System.out.println(buffer.toString());
+        //send user data to other verticle via event bus
+        data = buffer.toString();
+        response.end(buffer.toString());
+      });
+      response.endHandler(event -> {
+        vertx.eventBus().send("ibm.news.message", data.toString());
+
+        System.out.println("response committed");
+      });
+
+      //  response.end("Hello");
+    });
+    //start the server
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new SomeServiceVerticle());
+    // createBasicHttpServer();
+    //sendJson();
+    // readClientData();
+    sendRequestDataToEventBus();
+
+  }
+}
+******************************************************************************************************
+
+can you build REST End points or dynamic content generation application?
+........................................................................
+
+Drawbacks of core http server request processing
+
+- you cant write request method and url mapping.
+
+
+web module:
+..........
+Objects
+Router
+  - used to create routes
+Route
+  -Each route has handler, handler has been attached with RoutingContext
+
+RoutingContext
+  -similar to servletContext
+
+
+
+package com.ibm.vertx.microservices.web;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.example.util.Runner;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+
+class MessageController {
+  public static void hello(RoutingContext routingContext) {
+    //two objects you can get from RoutingContext - reqest, response
+    HttpServerResponse response = routingContext.response();
+    response.end("Hello Message");
+  }
+}
+
+public class SimpleWebVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(SimpleWebVerticle.class);
+  }
+
+  public void buildRouter() {
+
+    HttpServer httpServer = vertx.createHttpServer();
+    Router router = Router.router(vertx);
+    //HTTP GET request
+    router.get("/").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Home Page");
+    });
+    router.get("/api/message/hello").handler(MessageController::hello);
+    router.get("/api/message/hai").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Hai Message");
+    });
+    //bind router with request
+    httpServer.requestHandler(router);
+
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  private void homePage(RoutingContext routingCtx) {
+    //two objects you can get from RoutingContext - reqest, response
+    HttpServerResponse response = routingCtx.response();
+    response.end("Home Page");
+  }
+
+  public void buildDomainRouters() {
+    HttpServer httpServer = vertx.createHttpServer();
+
+    Router homeRouter = Router.router(vertx);
+    //HTTP GET request
+    homeRouter.get("/").handler(this::homePage);
+    ///
+    Router messageRouter = Router.router(vertx);
+    //message domain
+    messageRouter.get("/hello").handler(MessageController::hello);
+    messageRouter.get("/hai").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Hai Message");
+    });
+    //news domain
+    Router newsRouter = Router.router(vertx);
+    newsRouter.get("/weather").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Weather News");
+    });
+    newsRouter.get("/sports").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Sports news");
+    });
+
+    //proxy router, receives requests, according to url mapping , req will redirected
+    Router proxyRouter = Router.router(vertx);
+
+    proxyRouter.mountSubRouter("/", homeRouter);
+    proxyRouter.mountSubRouter("/api/message", messageRouter);
+    proxyRouter.mountSubRouter("/api/news", newsRouter);
+
+    //bind router with request
+    httpServer.requestHandler(proxyRouter);
+
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    // buildRouter();
+    buildDomainRouters();
+  }
+}
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Verticle to Verticle communication via WebClient:
+..................................................
+
+<dependency>
+ <groupId>io.vertx</groupId>
+ <artifactId>vertx-web-client</artifactId>
+ <version>3.9.2</version>
+</dependency>
+
+package com.ibm.vertx.microservices.web;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.example.util.Runner;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.client.HttpResponse;
+import io.vertx.ext.web.client.WebClient;
+
+class ClientVerticle extends AbstractVerticle {
+  //create webclient to call server verticle
+
+  public void callServer() {
+    HttpServer httpServer = vertx.createHttpServer();
+
+    httpServer.requestHandler(handler -> {
+      String url = "/api/message/hello";
+      String host = "localhost";
+      WebClient webClient = WebClient.create(vertx);
+      Integer port = 3000;
+      webClient.get(port, host, url).send(ar -> {
+        if (ar.succeeded()) {
+          //Obtain Response
+          HttpResponse<Buffer> response = ar.result();
+          System.out.println(response.bodyAsString());
+          handler.response().end(response.bodyAsString());
+        } else {
+          System.out.println(ar.cause());
+        }
+      });
+
+    });
+
+    httpServer.listen(3001, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    callServer();
+  }
+}
+
+class ServerVerticle extends AbstractVerticle {
+
+  public void process() {
+
+    HttpServer httpServer = vertx.createHttpServer();
+    Router router = Router.router(vertx);
+    //HTTP GET request
+    router.get("/").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Home Page");
+    });
+    router.get("/api/message/hello").handler(MessageController::hello);
+    router.get("/api/message/hai").handler(routingCtx -> {
+      //two objects you can get from RoutingContext - reqest, response
+      HttpServerResponse response = routingCtx.response();
+      response.end("Hai Message");
+    });
+    //bind router with request
+    httpServer.requestHandler(router);
+
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    process();
+  }
+}
+
+public class WebClientVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(WebClientVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new ServerVerticle());
+    vertx.deployVerticle(new ClientVerticle());
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+CURD Operation with UI:
+......................
+
+Web Templates
+Data - Database - MongoDB
+
+
+
+Template engines vertx supports
+
+Handlebars
+Jade,
+MVEL
+Thymeleaf
+Apache FreeMarker
+Pebble
+Rocker
+
+
+<dependency>
+ <groupId>io.vertx</groupId>
+ <artifactId>vertx-mongo-client</artifactId>
+ <version>3.9.2</version>
+</dependency>
+   <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-web-templ-jade</artifactId>
+      <classifier>shaded</classifier>
+      <version>3.9.2</version>
+    </dependency>
+
+
+Mongo db connection:
+...................
+JsonObject config=new JsonObject().put("db_name","demo");
+
+MongoClient client = MongoClient.createShared(vertx, config);
+
+
+save document:
+
+JsonObject document = new JsonObject()
+  .put("title", "The Hobbit");
+
+mongoClient.save("books", document, res -> {
+  if (res.succeeded()) {
+    String id = res.result();
+    System.out.println("Saved book with id " + id);
+  } else {
+    res.cause().printStackTrace();
+  }
+});
+
+package com.ibm.vertx.microservices.web.data;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+import io.vertx.ext.mongo.MongoClient;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.ext.web.templ.jade.JadeTemplateEngine;
+
+class UserVerticle extends AbstractVerticle {
+
+  public void startApplication() {
+    //mongo connection
+    JsonObject dbConfig = new JsonObject().put("db_name", "demo");
+    MongoClient mongo = MongoClient.createShared(vertx, dbConfig);
+    // In order to use a JADE template we first need to create an engine
+    final JadeTemplateEngine jade = JadeTemplateEngine.create(vertx);
+    final Router router = Router.router(vertx);
+    // Enable the body parser to we can get the form data and json documents in out context.
+    router.route().handler(BodyHandler.create());
+
+    // Entry point to the application, this will render a custom JADE template.
+    router.get("/").handler(ctx -> {
+      // we define a hardcoded title for our application
+      JsonObject data = new JsonObject()
+        .put("title", " IBM Vert.x Web");
+
+      // and now delegate to the engine to render it.
+      jade.render(data, "templates/index.jade", res -> {
+        if (res.succeeded()) {
+          ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "text/html").end(res.result());
+        } else {
+          ctx.fail(res.cause());
+        }
+      });
+    });
+
+    //interact with mongo db
+    //send data
+    // Create a new document on mongo.
+    router.post("/users").handler(ctx -> {
+      // since jquery is sending data in multipart-form format to avoid preflight calls, we need to convert it to JSON.
+      JsonObject user = new JsonObject()
+        .put("username", ctx.request().getFormAttribute("username"))
+        .put("email", ctx.request().getFormAttribute("email"))
+        .put("fullname", ctx.request().getFormAttribute("fullname"))
+        .put("location", ctx.request().getFormAttribute("location"))
+        .put("age", ctx.request().getFormAttribute("age"))
+        .put("gender", ctx.request().getFormAttribute("gender"));
+
+      // insert into mongo
+      mongo.insert("users", user, lookup -> {
+        // error handling
+        if (lookup.failed()) {
+          ctx.fail(lookup.cause());
+          return;
+        }
+
+        // inform that the document was created
+        ctx.response().setStatusCode(201);
+        ctx.response().end();
+      });
+    });
+
+    // Read all users from the mongo collection.
+    router.get("/users").handler(ctx -> {
+      mongo.find("users", new JsonObject(), lookup -> {
+        if (lookup.failed()) {
+          ctx.fail(lookup.cause());
+          return;
+        } else {
+          //now convert the list to a JsonArray because it will be easier to encode the final object as the response.
+          JsonArray jsonArray = new JsonArray();
+          for (JsonObject ob : lookup.result()) {
+            jsonArray.add(ob);
+          }
+          // since we are producing json we should inform the browser of the correct content type.
+          ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+          // encode to json string
+          ctx.response().end(jsonArray.encode());
+        }
+      });
+
+    });
+
+    // Remove a document from mongo.
+    router.delete("/users/:id").handler(ctx -> {
+      // catch the id to remove from the url /users/:id and transform it to a mongo query.
+      mongo.removeOne("users", new JsonObject().put("_id", ctx.request().getParam("id")), lookup -> {
+        // error handling
+        if (lookup.failed()) {
+          ctx.fail(lookup.cause());
+          return;
+        }
+
+        // inform the browser that there is nothing to return.
+        ctx.response().setStatusCode(204);
+        ctx.response().end();
+      });
+    });
+    // Serve the non private static pages
+    router.route().handler(StaticHandler.create());
+
+    // start a HTTP web server on port 8080
+    vertx.createHttpServer().requestHandler(router).listen(8080);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    startApplication();
+  }
+}
+
+
+public class CURDVerticleMain extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(CURDVerticleMain.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new UserVerticle());
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+Non blocking JDBC :
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-jdbc-client</artifactId>
+      <version>3.9.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hsqldb</groupId>
+      <artifactId>hsqldb</artifactId>
+      <version>2.3.4</version>
+    </dependency>
+
+Steps:
+Connection
+  // Create a JDBC client with a test database
+    client = JDBCClient.createShared(vertx, new JsonObject()
+      .put("url", "jdbc:hsqldb:mem:test?shutdown=true")
+      .put("driver_class", "org.hsqldb.jdbcDriver"));
+
+Query Processing
+getConnection(handler)
+execute
+query
+
+create table,add mock data, query the initalie data
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+JDBC
+RouterContext attributes
+Router interceptors
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
+package com.ibm.vertx.microservices.web.data;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Handler;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+import io.vertx.ext.jdbc.JDBCClient;
+import io.vertx.ext.sql.SQLConnection;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
+
+public class JDBCVerticle extends AbstractVerticle {
+  private static String CREATE_TABLE = "CREATE TABLE IF NOT EXISTS products(id INT IDENTITY, name VARCHAR(255), price FLOAT, weight INT)";
+  private static String INITAL_TABLE_DATA = "INSERT INTO products (name, price, weight) VALUES ('Egg Whisk', 3.99, 150), ('Tea Cosy', 5.99, 100), ('Spatula', 1.00, 80)";
+  private static String GET_ALL_PRODUCTS = "SELECT id, name, price, weight FROM products";
+  private JDBCClient client;
+
+
+  private void sendError(int statusCode, HttpServerResponse response) {
+    response.setStatusCode(statusCode).end();
+  }
+  public static void main(String[] args) {
+    Runner.runExample(JDBCVerticle.class);
+  }
+
+  private void handleListProducts(RoutingContext routingContext) {
+    HttpServerResponse response = routingContext.response();
+    SQLConnection conn = routingContext.get("conn");
+    conn.query(GET_ALL_PRODUCTS, query -> {
+      if (query.failed()) {
+        sendError(500, response);
+      } else {
+        JsonArray arr = new JsonArray();
+        query.result().getRows().forEach(arr::add);
+        routingContext.response().putHeader("content-type", "application/json").end(arr.encode());
+      }
+    });
+  }
+  public void startApplication() {
+    JsonObject jdbcConfig = new JsonObject()
+      .put("url", "jdbc:hsqldb:mem:test?shutdown=true")
+      .put("driver_class", "org.hsqldb.jdbcDriver");
+
+    //connect database
+    client = JDBCClient.createShared(vertx, jdbcConfig);
+
+    //setup inital data- create table,insert sample rows
+    setUpInitialData(ready -> {
+      Router router = Router.router(vertx);
+
+      router.route().handler(BodyHandler.create());
+
+      // in order to minimize the nesting of call backs we can put the JDBC connection on the context for all routes
+      // that match /products
+      // this should really be encapsulated in a reusable JDBC handler that uses can just add to their app
+      router.route("/products*").handler(routingContext ->
+        client.getConnection(res -> {
+          if (res.failed()) {
+            routingContext.fail(res.cause());
+          } else {
+            SQLConnection conn = res.result();
+            // save the connection on the context
+            routingContext.put("conn", conn);
+            // we need to return the connection back to the jdbc pool. In order to do that we need to close it, to keep
+            // the remaining code readable one can add a headers end handler to close the connection.
+            routingContext.addHeadersEndHandler(done -> conn.close(v -> {
+              System.out.println(v.succeeded() ? "Connection Closed" : "Connection not closed");
+            }));
+            routingContext.next();
+          }
+        })).failureHandler(routingContext -> {
+        SQLConnection conn = routingContext.get("conn");
+        if (conn != null) {
+          conn.close(v -> {
+            System.out.println(v.succeeded() ? "Connection Closed" : "Connection not closed");
+          });
+        }
+      });
+
+      // router.get("/products/:productID").handler(that::handleGetProduct);
+      //router.post("/products").handler(that::handleAddProduct);
+      router.get("/products").handler(this::handleListProducts);
+
+      vertx.createHttpServer().requestHandler(router).listen(8080);
+
+    });
+
+  }
+
+  private void setUpInitialData(Handler<Void> done) {
+    client.getConnection(res -> {
+      if (res.failed()) {
+        throw new RuntimeException(res.cause());
+      }
+
+      final SQLConnection conn = res.result();
+
+      //execute to create table
+      conn.execute(CREATE_TABLE, ddl -> {
+        if (ddl.failed()) {
+          throw new RuntimeException(ddl.cause());
+        }
+
+        //insert inital rows
+        conn.execute(INITAL_TABLE_DATA, fixtures -> {
+          if (fixtures.failed()) {
+            throw new RuntimeException(fixtures.cause());
+          }
+          done.handle(null);
+        });
+      });
+    });
+
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    startApplication();
+  }
+}
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Non blocking file system api:
+.............................
+
+How to read disk file in vertx in nonblocking way.
+
+package com.ibm.vertx.async.fs;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.file.FileSystem;
+import io.vertx.example.util.Runner;
+
+public class FileSystemVerticle extends AbstractVerticle {
+
+  public static void main(String[] args) {
+    Runner.runExample(FileSystemVerticle.class);
+  }
+
+  public void readFile() {
+    FileSystem fileSystem = vertx.fileSystem();
+    //read file in non blocking way
+    fileSystem.readFile("assets/info.txt", fileHandler -> {
+      if (fileHandler.succeeded()) {
+        System.out.println(fileHandler.result().toString());
+      } else {
+        System.out.println(fileHandler.cause());
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("start");
+    readFile();
+    System.out.println("end");
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+Golden Rule : Dont block event loop:
+.....................................
+
+There is no gurantee that vertx can offer 100% non blocking, what if i want to write blocking opertions inside vertx.
+
+-Non blocking operations are handled by "Event Loop" Thread.
+-Blocking operations should be off loaded outside event loop thread, grab result carefully without  blocking event loop.
+
+does vertx supports blocking code? is blocking is neccessary?How do we write blocking code? 
+
+Yes! vertx supports blocking code.
+
+Yes!, you cant write 100% non blocking code
+.
+Use case : 
+
+You are building vertx application, vertx application need to talk to hibernate/jpa layer.
+Vertx is non blocking but hibernate blocking.
+
+if you write blocking inside non blocking vertx will throw error, but how to bridge blocking with non-blocking.
+
+Blocking code
+
+-Thread.sleep
+-long running task
+-legacy file io
+-legacy network 
+-database 
+-external api 
+.....
+
+Event loop thread can wait for 2000ms - default wait duration : event loop thread in vertx cant 
+wait / be blocked for 2000ms.
+
+package com.ibm.vertx.blocking;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.example.util.Runner;
+
+
+class MyVerticle extends AbstractVerticle {
+  public void blockMe() {
+    try {
+      Thread.sleep(10000);
+    } catch (InterruptedException exception) {
+      System.out.println(exception);
+    }
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //write blocking code
+    blockMe();
+    System.out.println(Thread.currentThread().getName());
+  }
+}
+
+
+public class BlockingVerticleMain extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(BlockingVerticleMain.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new MyVerticle());
+  }
+}
+
+
+if you run the above code , vertx will throw the following messageSep 10, 2020 5:02:07 PM io.vertx.core.impl.BlockedThreadChecker
+WARNING: Thread Thread[vert.x-eventloop-thread-1,5,main]=Thread[vert.x-eventloop-thread-1,5,main] has been blocked for 2031 ms, time limit is 2000 ms
+Sep 10, 2020 5:02:08 PM io.vertx.core.impl.BlockedThreadChecker
+WARNING: Thread Thread[vert.x-eventloop-thread-1,5,main]=Thread[vert.x-eventloop-thread-1,5,main] has been blocked for 3031 ms, time limit is 2000 ms
+Sep 10, 2020 5:02:09 PM io.vertx.core.impl.BlockedThreadChecker
+WARNING: Thread Thread[vert.x-eventloop-thread-1,5,main]=Thread[vert.x-eventloop-thread-1,5,main] has been blocked for 4031 ms, time limit is 2000 ms
+Sep 10, 2020 5:02:10 PM io.vertx.core.impl.BlockedThreadChecker
+WARNING: Thread Thread[vert.x-eventloop-thread-1,5,main]=Thread[vert.x-eventloop-thread-1,5,main] has been blocked for 5031 ms, time limit is 2000 ms
+io.vertx.core.VertxException: Thread blocked
+	at java.lang.Thread.sleep(Native Method)
+	at com.ibm.vertx.blocking.MyVerticle.blockMe(BlockingVerticleMain.java:10)
+	at com.ibm.vertx.blocking.MyVerticle.start(BlockingVerticleMain.java:20)
+	at io.vertx.core.AbstractVerticle.start(AbstractVerticle.java:108)
+	at io.vertx.core.Verticle.start(Verticle.java:66)
+	at io.vertx.core.impl.DeploymentManager.lambda$doDeploy$9(DeploymentManager.java:556)
+	at io.vertx.core.impl.DeploymentManager$$Lambda$11/764577347.handle(Unknown Source)
+	at io.vertx.core.impl.ContextImpl.executeTask(ContextImpl.java:366)
+	at io.vertx.core.impl.EventLoopContext.lambda$executeAsync$0(EventLoopContext.java:38)
+	at io.vertx.core.impl.EventLoopContext$$Lambda$12/1690287238.run(Unknown Source)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:164)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:472)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:500)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:989)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.lang.Thread.run(Thread.java:748)
+
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Blocking code :
+
+1.Through verticle itself
+
+   The verticle itself can be isloated from the event loop.
+
+2.Through vertx has apis executeBlocking.
+
+Verticle Types:
+  There are two types of verticles
+
+1.Standard Verticle
+
+2.Worker Verticle
+
+
+1.Standard Verticle :
+   These types of verticles are the most common and usefull type - They are always executed using an event loop thread.
+
+
+2.Worker Verticle
+    These run using a thread from the "Worker Pool".
+    An instance is never executed concurrently by more than one thread.
+
+Before deploying verticle, you can tell that this verticle is "Worker" / "standard".
+
+How to isloate the whole Verticle Processing by Worker Pool thread?
+
+ -Maker Worker Verticle
+
+How to create Worker Verticle?
+
+Every Object in Vertx has its own configuration?
+
+vertx - VertxOptions
+Verticle -DeploymentOptions
+...
+
+package com.ibm.vertx.blocking;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.example.util.Runner;
+
+class MyVerticle extends AbstractVerticle {
+  public void blockMe() {
+    try {
+      System.out.println("zzzzzz");
+      Thread.sleep(5000);
+      System.out.println("After sleep");
+    } catch (InterruptedException exception) {
+      System.out.println(exception);
+    }
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //write blocking code
+    blockMe();
+    System.out.println(Thread.currentThread().getName());
+  }
+}
+
+
+public class BlockingVerticleMain extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(BlockingVerticleMain.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+  //  DeploymentOptions deploymentOptions = new DeploymentOptions().setWorker(true);
+    //vertx.deployVerticle(new MyVerticle(),deploymentOptions);
+    vertx.deployVerticle(new MyVerticle(), new DeploymentOptions().setWorker(true));
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
