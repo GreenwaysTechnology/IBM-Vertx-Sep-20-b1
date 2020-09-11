@@ -1,5 +1,6 @@
 package com.ibm.vertx.services;
 
+import io.vertx.codegen.annotations.Fluent;
 import io.vertx.codegen.annotations.ProxyGen;
 import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.*;
@@ -10,19 +11,28 @@ import io.vertx.serviceproxy.ServiceBinder;
 @VertxGen
 interface GreeterService {
   public static String ADDRESS = GreeterService.class.getName();
-  //biz apis
-  void sayHello(String name, Handler<AsyncResult<String>> handler);
 
   //api to create Service Proxy Object
   static GreeterService createProxy(Vertx vertx, String address) {
     return new GreeterServiceVertxEBProxy(vertx, address);
   }
+
+  //biz apis
+  void sayHello(String name, Handler<AsyncResult<String>> handler);
+
+  @Fluent
+  GreeterService doSomething();
 }
 
 class GreeterServiceImpl implements GreeterService {
   @Override
   public void sayHello(String name, Handler<AsyncResult<String>> handler) {
     handler.handle(Future.succeededFuture("Hello" + name));
+  }
+
+  @Override
+  public GreeterService doSomething() {
+    return this;
   }
 }
 
@@ -33,12 +43,18 @@ class HaiVerticle extends AbstractVerticle {
     //Call service
     GreeterService service = GreeterService.createProxy(vertx, GreeterService.ADDRESS);
     service.sayHello("Subramanian", ar -> {
-      if(ar.succeeded()){
+      if (ar.succeeded()) {
+        System.out.println(ar.result());
+      }
+    });
+    service.doSomething().sayHello("Ram", ar -> {
+      if (ar.succeeded()) {
         System.out.println(ar.result());
       }
     });
   }
 }
+
 public class ServiceProxyMain extends AbstractVerticle {
   public static void main(String[] args) {
     Runner.runExample(ServiceProxyMain.class);

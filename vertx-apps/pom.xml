@@ -17,7 +17,7 @@
 
     <vertx.version>3.9.2</vertx.version>
     <junit-jupiter.version>5.4.0</junit-jupiter.version>
-    <main.verticle>com.ibm.vertx.core.HelloWorldVerticle</main.verticle>
+    <main.verticle>com.ibm.vertx.containers.HelloVerticle</main.verticle>
   </properties>
 
   <dependencyManagement>
@@ -87,6 +87,33 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-rx-java2</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-service-discovery</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-service-discovery-backend-zookeeper</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-circuit-breaker</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-config</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <version>${junit-jupiter.version}</version>
@@ -105,9 +132,6 @@
           <annotationProcessors>
             <annotationProcessor>io.vertx.codegen.CodeGenProcessor</annotationProcessor>
           </annotationProcessors>
-          <generatedSourcesDirectory>
-            ${project.basedir}/src/main/generated
-          </generatedSourcesDirectory>
         </configuration>
       </plugin>
       <plugin>

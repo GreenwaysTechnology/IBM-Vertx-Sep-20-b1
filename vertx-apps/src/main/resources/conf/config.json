@@ -1,4 +1,4 @@
 {
-  "message": "Hello",
-  "port": 3000
+  "appname": "IBM Vertx Application",
+  "version": "1.0.0"
 }
